@@ -1,0 +1,107 @@
+# Copyright (c) 2018 <Kevin O. H. Heim>
+# Permission is hereby granted, free of charge, to any person obtaining 
+# a copy of this software and associated documentation files (the "Software"), 
+# to deal in the Software without restriction, including without limitation 
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+# and/or sell copies of the Software, and to permit persons to whom the Software 
+# is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included 
+# in all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS 
+# OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
+# OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+#!/bin/bash
+PROJECT_NAME="PROJECT_NAME"
+# Password File for SMTP Server
+AUTH_PASSWORD="/opt/bin/.scripts/smtp_pw.txt"
+
+# Define your disks here delimited by whitespace for example "sda sdb"
+DRIVES="/dev/root /dev/mmcblk0p1"
+
+# Limit - when this value is reached send mail to user
+ERROR_WHEN=80
+
+# Account which will be used as relay to prevent dns lookup error
+FROM="YOUR EMAIL ADDRESS"
+
+# Account auth user
+AUTH_USER="YOUR EMAIL ADDRESS LOGIN"
+
+#SMTP RELAY SERVER 
+SMTP_SERVER="SMTP SERVER"
+
+# User which receiving the mail  - delimited by , for example "example@example.com,other@example.com"
+RECIPIENTS="TARGET EMAIL"
+
+# Message Location 
+MESSAGE="message.txt" 
+
+# The Subject of the Email 
+SUBJECT="Disk space alert! Detected low memory on disk!" 
+
+# Get the correspondending error message
+find_error(){
+    if [ "$1" -gt "0" ]; then
+	    echo "$(date) exited with error $1 check man page *man swaks* for detailed information - $(read_exit_codes | grep $1)"
+	else 
+	    echo "$(date) exited with no error - mail successfully send" 
+	fi
+}
+
+# Extract exit codes from manpage 
+read_exit_codes(){
+    str="$(man swaks)"
+	b=$(man swaks | grep -b -o "EXIT CODES" |  awk 'BEGIN {FS=":"}{print $1}')
+	c=$(man swaks | grep -b -o "ABOUT THE NAME" |  awk 'BEGIN {FS=":"}{print $1}')
+	num="$(($c-$b))"
+	echo "${str:$b:$num}"
+}
+
+
+# Check the filesystem Size - by executing "df -h" be aware that this could
+# be a different size to the original filesystem size!
+checkFileSystemSize(){
+
+   str=""
+   for word in $DRIVES  
+   do
+      # Find the Disk in the output of df 
+      remaining=$(df -h | grep $word )
+      stringarray=($remaining)
+      remain=${stringarray[4]}
+      remain=${remain::-1}
+	  
+     if [ "$remain" -gt "$ERROR_WHEN" ]; then
+	     line="$(date) The disk ${word} does not have enough space! Remove files to keep this machine running! Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]} "
+		 temp="${str}\n${line}"
+	     str=$(echo -e "${temp}")
+     fi
+     echo "$(date) Checked filesystem space of disk: $word Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]}"
+   done
+   
+   # Create the Message 
+   str=$(echo -e "$str")
+   data=$(cat $MESSAGE)
+   temp="${data}\n${str}"
+   MESSAGE=$(echo -e "${temp}")
+   
+   # Send the Email with swaks - change the default vars for your needs
+   status=$(swaks --body "$MESSAGE" --header "Subject: $PROJECT_NAME $SUBJECT" --to $RECIPIENTS --from "$FROM" --server $SMTP_SERVER --auth LOGIN --auth-user "$AUTH_USER" --auth-password "$(cat $AUTH_PASSWORD)" -tls) 
+   exit_code=$?
+   
+   # Verbose output 
+   if [[ $1 == "-v" ]]; then
+      echo "$(date) $status"
+   fi
+   
+   # Find some detailed information in the manpage if an error occurs
+   find_error $exit_code
+}
+checkFileSystemSize $1
+

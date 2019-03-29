@@ -1,4 +1,4 @@
-# Monitor Free Disk Space
+# Disk Space Monitor
 
 Small script which can be used to send notifications when a there is not enough space on disks.
 
@@ -95,7 +95,7 @@ MESSAGE="message.txt"
 SUBJECT="Disk space alert! Detected low memory on disk!"
 ```
 
-End with an example of getting some data out of the system or using it for a little demo
+After changing the necessary parameters all should be working well. These could be your output.
 
 ```
 Fr 28. Dec 20:36:34 UTC 2018 Checked filesystem space of disk: /dev/root Remaining space: 8,0G used: 6,0G  43 size: 15G

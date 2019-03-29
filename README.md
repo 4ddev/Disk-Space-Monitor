@@ -11,7 +11,7 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install the software and how to install them
 
 ```
-apt-get install mailutils 
+sudo apt-get install swaks 
 ```
 
 ### Installing
@@ -39,15 +39,16 @@ cd .scripts
 Download and create the Source file 
 
 ```
-curl https://github.com/4ddev/ > spaceMonitor.sh 
+curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > disk_space_monitor.sh
 ```
 
 Change file permissions 
 
 ```
-sudo chmod 600 spaceMonitor.sh
+sudo chmod 700 disk_space_monitor.sh
 ```
 
+Change the variables in the "disk_space_monitor.sh" to your needs 
 
 
 End with an example of getting some data out of the system or using it for a little demo

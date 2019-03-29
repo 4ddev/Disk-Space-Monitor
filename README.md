@@ -21,7 +21,7 @@ Follow these instructions for setting up the Disk Space monitor
 Create a directory ( choose your preferred location )
 
 ```
-mkdir .scripts 
+sudo mkdir .scripts 
 ```
 
 Change permissions of the created directory
@@ -30,28 +30,78 @@ Change permissions of the created directory
 sudo chmod 600 .scripts
 ```
 
-Change to the new directory 
-
-```
-cd .scripts 
-```
-
 Download and create the Source file 
 
 ```
-curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > disk_space_monitor.sh
+sudo curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > disk_space_monitor.sh
 ```
 
 Change file permissions 
 
 ```
-sudo chmod 700 disk_space_monitor.sh
+sudo chmod 700 .scripts/disk_space_monitor.sh
 ```
 
-Change the variables in the "disk_space_monitor.sh" to your needs 
+Create a file which stores the smtp password - 
 
+```
+sudo echo "YOUR PASSWORD HERE" > .scripts/smtp_pw.txt
+```
+
+Create a file which contains the mail body 
+
+```
+sudo echo "Some default message which is send in any mail"  > .scripts/message.txt
+```
+
+
+Open the file by  typing 
+
+```
+sudo nano .scripts/disk_space_monitor.sh 
+```
+
+Change these parameters to your needs 
+
+```
+# PROJECT NAME this will be added to the Subject 
+PROJECT_NAME="PROJECT_NAME"
+
+# Location of your password File - dont forget to change the file permissions!
+AUTH_PASSWORD="/opt/bin/.scripts/smtp_pw.txt"
+
+# Define your disks here delimited by whitespace for example "sda sdb"
+DRIVES="/dev/root /dev/mmcblk0p1"
+
+# Limit - when this value is reached send mail to user
+ERROR_WHEN=80
+
+# Account which will be used as relay to prevent dns lookup error
+FROM="YOUR EMAIL ADDRESS"
+
+# Account auth user
+AUTH_USER="YOUR EMAIL ADDRESS LOGIN"
+
+#SMTP RELAY SERVER 
+SMTP_SERVER="SMTP SERVER"
+
+# User which receiving the mail  - delimited by , for example "example@example.com,other@example.com"
+RECIPIENTS="TARGET EMAIL"
+
+# Message Location 
+MESSAGE="message.txt" 
+
+# The Subject of the Email 
+SUBJECT="Disk space alert! Detected low memory on disk!"
+```
 
 End with an example of getting some data out of the system or using it for a little demo
+
+```
+Fr 28. Dec 20:36:34 UTC 2018 Checked filesystem space of disk: /dev/root Remaining space: 8,0G used: 6,0G  43 size: 15G
+Fr 28. Dec 20:36:34 UTC 2018 Checked filesystem space of disk: mmcblk0p1 Remaining space: 21M used: 22M  52 size: 43M
+Fr 28. Dec 20:36:35 UTC 2018 exited with no error - mail successfully send
+```
 
 ## Running the tests
 

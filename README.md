@@ -118,7 +118,7 @@ sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh -r"
 
 or 
 
-sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh --remove"
+sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh --deinstall"
 ```
 
 ## Running the tests

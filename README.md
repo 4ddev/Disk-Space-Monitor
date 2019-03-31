@@ -33,7 +33,7 @@ sudo chmod 700 .scripts
 Download and create the Source file 
 
 ```
-sudo curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > .scripts/disk_space_monitor.sh
+sudo sh -c 'curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > .scripts/disk_space_monitor.sh'
 ```
 
 Change file permissions 
@@ -42,21 +42,23 @@ Change file permissions
 sudo chmod 700 .scripts/disk_space_monitor.sh
 ```
 
-Start the Installing routine - this will generate the Cronjob and a logrotate configuration also this will generate the default message and password file
+Start the installation process - verify that you changed the directory to .scripts
+This will generate a cronjob at 4AM and a logrotate configuration file also some default files in the directory will be generated 
+The cronjob will be generated as root user 
 ```
-sudo .scripts/disk_space_monitor.sh -i 
+sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh -i"
 ```
 
 Store your smtp Password to the generated Password file 
 
 ```
-sudo echo "YOUR_PASSWORD" > .scripts/smtp_pw.txt
+sudo /bin/bash -c 'echo "YOUR_PASSWORD" > .scripts/smtp_pw.txt'
 ```
 
 Store a default Message in the message file 
 
 ```
-sudo echo "Your message" > .scripts/message.txt
+sudo /bin/bash -c 'echo "YOUR MESSAGE" > .scripts/message.txt'
 ```
 
 
@@ -108,6 +110,17 @@ Fr 28. Dec 20:36:34 UTC 2018 Checked filesystem space of disk: mmcblk0p1 Remaini
 Fr 28. Dec 20:36:35 UTC 2018 exited with no error - mail successfully send
 ```
 
+## Deinstall 
+
+You are able to remove all generated files of this script with this routine 
+```
+sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh -r"
+
+or 
+
+sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh --remove"
+```
+
 ## Running the tests
 
 Before testing your new script - check any Parameter be sure that password and message is set. 
@@ -117,7 +130,7 @@ Before testing your new script - check any Parameter be sure that password and m
 Run the script
 
 ```
-.scripts/disk_space_monitor.sh
+sudo /bin/bash -c "cd .scripts; ./disk_space_monitor.sh"
 ```
 
 This should give you all necessary information whats going on.
@@ -126,6 +139,7 @@ This should give you all necessary information whats going on.
 
 Follow the instructions in this readme to deploy this script to your live-system 
 The Script was tested on Ubuntu18.04 | Raspbian 9.8
+
 
 ## Contributing
 

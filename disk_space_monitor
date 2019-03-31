@@ -19,7 +19,7 @@
 #!/bin/bash
 PROJECT_NAME="PROJECT_NAME"
 # Password File for SMTP Server
-AUTH_PASSWORD="/opt/bin/.scripts/smtp_pw.txt"
+AUTH_PASSWORD="smtp_pw.txt"
 
 # Define your disks here delimited by whitespace for example "sda sdb"
 DRIVES="/dev/root /dev/mmcblk0p1"
@@ -45,14 +45,16 @@ MESSAGE="message.txt"
 # The Subject of the Email 
 SUBJECT="Disk space alert! Detected low memory on disk!" 
 
+
 # Get the correspondending error message
-find_error(){
+print_error(){
     if [ "$1" -gt "0" ]; then
-	    echo "$(date) exited with error $1 check man page *man swaks* for detailed information - $(read_exit_codes | grep $1)"
+	    echo "$(date) exited with error $1 check man page *man swaks* for detailed information"
 	else 
 	    echo "$(date) exited with no error - mail successfully send" 
 	fi
 }
+
 
 # Extract exit codes from manpage 
 read_exit_codes(){
@@ -85,23 +87,168 @@ checkFileSystemSize(){
      echo "$(date) Checked filesystem space of disk: $word Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]}"
    done
    
-   # Create the Message 
+   # Create the Message - if the message is empty close this script  
    str=$(echo -e "$str")
    data=$(cat $MESSAGE)
-   temp="${data}\n${str}"
-   MESSAGE=$(echo -e "${temp}")
-   
-   # Send the Email with swaks - change the default vars for your needs
-   status=$(swaks --body "$MESSAGE" --header "Subject: $PROJECT_NAME $SUBJECT" --to $RECIPIENTS --from "$FROM" --server $SMTP_SERVER --auth LOGIN --auth-user "$AUTH_USER" --auth-password "$(cat $AUTH_PASSWORD)" -tls) 
-   exit_code=$?
-   
-   # Verbose output 
-   if [[ $1 == "-v" ]]; then
-      echo "$(date) $status"
+   if [ $? -gt 0 ];then
+      echo " -ERROR: Could not find message file"
+	  exit 1
+   elif [ $(cat $MESSAGE | wc -c ) -eq "0" ];then
+      echo " -ERROR: No default message found!"
+      exit 1	  
    fi
    
+   temp="${data}\n${str}"
+   MESSAGE_BODY=$(echo -e "${temp}")
+   
+   PW=$(cat $AUTH_PASSWORD)
+   PW_LENGTH=$(cat $AUTH_PASSWORD | wc -c )
+   if [ $? -gt 0 ];then
+      echo " -ERROR: Could not find password file"
+	  exit 1
+   elif [ $PW_LENGTH -eq "0" ];then
+      echo " -ERROR: Password empty!" 
+	  exit 1
+   fi 
+   
+   # Send the Email with swaks - change the default vars for your needs
+   status=$(swaks --body "$MESSAGE_BODY" --header "Subject: $PROJECT_NAME $SUBJECT" --to $RECIPIENTS --from "$FROM" --server $SMTP_SERVER --auth LOGIN --auth-user "$AUTH_USER" --auth-password "$PW" -tls)
+   exit_code=$?
+   
    # Find some detailed information in the manpage if an error occurs
-   find_error $exit_code
+   print_error $exit_code
 }
-checkFileSystemSize $1
+
+# The Logfile where logs will be stored 
+LOG_FILE="/var/log/disk_space_monitor.log"
+
+full_path(){
+   LOCATION=`pwd`
+   SCRIPT_NAME=$0
+
+   if [[ ${SCRIPT_NAME:0:1} == '.' ]];then 
+      SCRIPT_NAME=`echo $SCRIPT_NAME | sed 's/\.//'`
+      SCRIPT_NAME=$(echo "$LOCATION$SCRIPT_NAME")
+      echo $SCRIPT_NAME
+   else 
+      echo $0
+   fi
+}
+
+#############################################################
+#  Create dependencys of this script
+#  
+#  Also this will create a cronjob at 4 AM 
+#  Should be started as root
+#############################################################
+install(){
+   SCRIPT_NAME=$(full_path)
+   echo " - SCRIPT: $SCRIPT_NAME"
+   echo " - This Installscript will create a cronjob"
+   echo " - also a logrotate config will be generated" 
+   echo " - You have to change the default parameters in this script"
+   echo " - that the connection to your smtp relay can be established" 
+   
+   # Create the Message file 
+   touch $MESSAGE
+   chmod 640 $MESSAGE
+   
+   # Create the PW File 
+   touch $AUTH_PASSWORD
+   chmod 600 $AUTH_PASSWORD 
+   
+   
+   touch $LOG_FILE
+   chmod 640 $LOG_FILE
+   echo " - Logfile $LOG_FILE created."
+   install_cron $SCRIPT_NAME
+   configure_logrotate
+}
+
+#############################################################
+# Remove this script and any files relating to this script
+#############################################################
+deinstall(){
+   echo " - Removing all parts of this script"
+   echo " - Also this will remove the Message and the PW File" 
+   echo " - Backup your configuration if its necessary" 
+   SCRIPT_NAME=$(full_path)
+   echo " - SCRIPT: $SCRIPT_NAME"
+   rm $LOGROTATE_FILE
+   rm $LOG_FILE
+   rm $MESSAGE
+   rm $AUTH_PASSWORD
+   deinstall_cron $SCRIPT_NAME
+   echo " Remove the Script by - rm $SCRIPT_NAME" 
+}
+
+#############################################################
+# Install the Cronjob of this script
+# If there is always a cronjob active this will not update
+# the cronjobs
+#############################################################
+install_cron(){
+   CRON_JOB=$(echo "0 4 * * * $1 >> $LOG_FILE" )
+   
+   ALREADY_EXISTS=$( crontab -l | grep "$1" --color=always )
+   COUNT=$(echo $ALREADY_EXISTS | wc -c )
+
+   if [ $COUNT -gt 1 ];then 
+      echo -e "$ALREADY_EXISTS" 
+	  echo " -INFO: Cronjob already inserted - cron will not be updated!" 
+   else    
+	  ( crontab -l ; echo "$CRON_JOB" ) | crontab -
+	  if [ $? -gt 0 ];then 
+	     echo " -ERROR: Cronjob could not be inserted! Programm exit." 
+		 exit
+	  fi
+	  echo " - CronJob successfully inserted." 
+   fi
+}
+# Remove the cronjob 
+deinstall_cron(){
+   REGEX=$1
+   TEMP_IFS=$(echo $IFS) 
+   IFS=$'\n'
+   LINES=$( crontab -l | grep "$1" -n )
+   REMOVE_LINES=""
+   for i in $LINES;do 
+      REMOVE_LINES=`echo $REMOVE_LINES$(echo $( echo $i | sed 's/:.*//' )"d;")`
+   done
+   REMOVE_LINES=$( echo "crontab -l | sed -e '$REMOVE_LINES'")
+   CRON=$(eval $REMOVE_LINES) 
+   STATUS=$(echo $CRON | crontab) 
+   if [ $? -gt 0 ];then
+      echo "$STATUS - Cronjob could not be removed check cronjobs by yourself! [ crontab -l]"
+   else 
+      echo "$STATUS - Cronjob successfully removed"
+   fi
+   IFS=$(echo $TEMP_IFS)   
+}
+
+#############################################################
+# Configure logrotate
+#############################################################
+LOGROTATE_CONFIG=" {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    create 640 root root
+}"
+
+LOGROTATE_FILE="/etc/logrotate.d/disk_space_monitor"
+
+configure_logrotate(){
+    echo -e "$LOG_FILE$LOGROTATE_CONFIG" > $LOGROTATE_FILE
+	echo "Logrotate configuration written to $LOGROTATE_FILE"
+}
+
+
+case "$1" in
+  -r|--deinstall)  deinstall;;
+  -i|--install)    install;;
+  *)  checkFileSystemSize $1   ;;
+esac
 

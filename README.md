@@ -110,7 +110,7 @@ Fr 28. Dec 20:36:34 UTC 2018 Checked filesystem space of disk: mmcblk0p1 Remaini
 Fr 28. Dec 20:36:35 UTC 2018 exited with no error - mail successfully send
 ```
 
-## Deinstall 
+### Deinstall 
 
 You are able to remove all generated files of this script with this routine 
 ```

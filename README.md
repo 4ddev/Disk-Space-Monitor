@@ -27,13 +27,13 @@ sudo mkdir .scripts
 Change permissions of the created directory
 
 ```
-sudo chmod 600 .scripts
+sudo chmod 700 .scripts
 ```
 
 Download and create the Source file 
 
 ```
-sudo curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > disk_space_monitor.sh
+sudo curl https://raw.githubusercontent.com/4ddev/Disk-Space-Monitor/master/disk_space_monitor > .scripts/disk_space_monitor.sh
 ```
 
 Change file permissions 
@@ -42,20 +42,25 @@ Change file permissions
 sudo chmod 700 .scripts/disk_space_monitor.sh
 ```
 
-Create a file which stores the smtp password - 
-
+Start the Installing routine - this will generate the Cronjob and a logrotate configuration also this will generate the default message and password file
 ```
-sudo echo "YOUR PASSWORD HERE" > .scripts/smtp_pw.txt
-```
-
-Create a file which contains the mail body 
-
-```
-sudo echo "Some default message which is send in any mail"  > .scripts/message.txt
+sudo .scripts/disk_space_monitor.sh -i 
 ```
 
+Store your smtp Password to the generated Password file 
 
-Open the file by  typing 
+```
+sudo echo "YOUR_PASSWORD" > .scripts/smtp_pw.txt
+```
+
+Store a default Message in the message file 
+
+```
+sudo echo "Your message" > .scripts/message.txt
+```
+
+
+Open the file by typing 
 
 ```
 sudo nano .scripts/disk_space_monitor.sh 
@@ -68,9 +73,9 @@ Change these parameters to your needs
 PROJECT_NAME="PROJECT_NAME"
 
 # Location of your password File - dont forget to change the file permissions!
-AUTH_PASSWORD="/opt/bin/.scripts/smtp_pw.txt"
+AUTH_PASSWORD="smtp_pw.txt"
 
-# Define your disks here delimited by whitespace for example "sda sdb"
+# Define your disks here delimited by whitespace for example "sda sdb" 
 DRIVES="/dev/root /dev/mmcblk0p1"
 
 # Limit - when this value is reached send mail to user
@@ -105,39 +110,27 @@ Fr 28. Dec 20:36:35 UTC 2018 exited with no error - mail successfully send
 
 ## Running the tests
 
-Explain how to run the automated tests for this system
+Before testing your new script - check any Parameter be sure that password and message is set. 
 
 ### Break down into end to end tests
 
-Explain what these tests test and why
+Run the script
 
 ```
-Give an example
+.scripts/disk_space_monitor.sh
 ```
 
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
+This should give you all necessary information whats going on.
 
 ## Deployment
 
-Add additional notes about how to deploy this on a live system
-
-## Built With
-
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - ......
+Follow the instructions in this readme to deploy this script to your live-system 
+The Script was tested on Ubuntu18.04 | Raspbian 9.8
 
 ## Contributing
 
 Please read [CONTRIBUTING.md]() for details on our code of conduct, and the process for submitting pull requests to us.
 
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
 
 ## Authors
 
@@ -149,8 +142,3 @@ See also the list of [contributors](https://github.com/your/project/contributors
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc

@@ -1,28 +1,31 @@
 # Copyright (c) 2018 <Kevin O. H. Heim>
-# Permission is hereby granted, free of charge, to any person obtaining 
-# a copy of this software and associated documentation files (the "Software"), 
-# to deal in the Software without restriction, including without limitation 
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-# and/or sell copies of the Software, and to permit persons to whom the Software 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the Software
 # is furnished to do so, subject to the following conditions:
 
-# The above copyright notice and this permission notice shall be included 
+# The above copyright notice and this permission notice shall be included
 # in all copies or substantial portions of the Software.
 
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS 
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
 # OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 # OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #!/bin/bash
+#The configuration
+CONFIGURATION_FILE="configuration.txt"
+
 PROJECT_NAME="PROJECT_NAME"
 # Password File for SMTP Server
 AUTH_PASSWORD="smtp_pw.txt"
 
 # Define your disks here delimited by whitespace for example "sda sdb"
-DRIVES="/dev/root /dev/mmcblk0p1"
+DRIVES="/dev/sda /dev/md126"
 
 # Limit - when this value is reached send mail to user
 ERROR_WHEN=80
@@ -33,136 +36,235 @@ FROM="YOUR EMAIL ADDRESS"
 # Account auth user
 AUTH_USER="YOUR EMAIL ADDRESS LOGIN"
 
-#SMTP RELAY SERVER 
+#SMTP RELAY SERVER
 SMTP_SERVER="SMTP SERVER"
 
 # User which receiving the mail  - delimited by , for example "example@example.com,other@example.com"
 RECIPIENTS="TARGET EMAIL"
 
-# Message Location 
-MESSAGE="message.txt" 
+# Message Location
+MESSAGE="message.txt"
 
-# The Subject of the Email 
-SUBJECT="Disk space alert! Detected low memory on disk!" 
+# The Subject of the Email
+SUBJECT="Disk space alert! Detected low memory on disk!"
 
+configure(){
+   echo "Configure Disk-Space-Monitor"
+
+   if [ ! -f $CONFIGURATION_FILE ];then
+     touch $CONFIGURATION_FILE
+     chmod 600 $CONFIGURATION_FILE
+   else
+     echo "Warning! Old configuration found this process will overwrite the old configuration!"
+     printf "Continue? [y|n]: "
+     read -r CONTINUE
+     if [[ $CONTINUE != "y" ]];then
+        exit 0
+     fi
+   fi
+
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert a Project-Name: "
+   read -r PROJECT_NAME
+
+   echo "-----------------------------------------------------------------------------"
+   df -h
+   printf "Insert the Drives which should monitored seperated by a whitespace f.e. [ /dev/sda /dev/sdb ]: "
+   read -r DRIVES
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert the maximum percentage when an message will be send to the recipients [ 80 ] : "
+   read -r ERROR_WHEN
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert the recipients of this warning [ email@domain.com other@domain.com ]: "
+   read -r RECIPIENTS
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert the main mail account name [From which like postmaster@domain]: "
+   read -r FROM
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert your EMAIL-Host: "
+   read -r SMTP_SERVER
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert your Email Account Username: "
+   read -r AUTH_USER
+   echo "-----------------------------------------------------------------------------"
+   printf "Insert your Email Password: "
+   read -r AUTH_MAIL_PW
+   echo "#Configuration of DiskSpaceMonitor
+PROJECT_NAME=$PROJECT_NAME
+DRIVES=$DRIVES
+ERROR_WHEN=$ERROR_WHEN
+RECIPIENTS=$RECIPIENTS
+FROM=$FROM
+SMTP_SERVER=$SMTP_SERVER
+AUTH_USER=$AUTH_USER
+AUTH_MAIL_PW=$AUTH_MAIL_PW
+SUBJECT=$SUBJECT
+" > $CONFIGURATION_FILE
+   readConfiguration
+}
+
+readConfiguration(){
+
+   CONFIG="$(cat $CONFIGURATION_FILE)"
+
+   PROJECT_NAME=$( echo "$CONFIG" | grep PROJECT_NAME )
+   PROJECT_NAME=${PROJECT_NAME#*=}
+
+   DRIVES=$( echo "$CONFIG" | grep DRIVES )
+   DRIVES=${DRIVES#*=}
+
+   ERROR_WHEN=$( echo "$CONFIG" | grep ERROR_WHEN )
+   ERROR_WHEN=${ERROR_WHEN#*=}
+
+   FROM=$( echo "$CONFIG" | grep FROM )
+   FROM=${FROM#*=}
+
+   RECIPIENTS=$( echo "$CONFIG" | grep RECIPIENTS )
+   RECIPIENTS=${RECIPIENTS#*=}
+
+   SMTP_SERVER=$( echo "$CONFIG" | grep SMTP_SERVER )
+   SMTP_SERVER=${SMTP_SERVER#*=}
+
+   AUTH_USER=$( echo "$CONFIG" | grep AUTH_USER )
+   AUTH_USER=${AUTH_USER#*=}
+
+   AUTH_MAIL_PW=$( echo "$CONFIG" | grep AUTH_MAIL_PW )
+   AUTH_MAIL_PW=${AUTH_MAIL_PW#*=}
+
+
+   SUBJECT=$( echo "$CONFIG" | grep SUBJECT )
+   SUBJECT=${SUBJECT#*=}
+   #echo "SUBJECT $SUBJECT"
+}
 
 # Get the correspondending error message
 print_error(){
     if [ "$1" -gt "0" ]; then
-	    echo "$(date) exited with error $1 check man page *man swaks* for detailed information"
-	else 
-	    echo "$(date) exited with no error - mail successfully send" 
-	fi
+       echo "$(date) exited with error $1 check man page *man swaks* for detailed information"
+    else
+       echo "$(date) exited with no error - mail successfully send"
+    fi
 }
 
 
-# Extract exit codes from manpage 
+# Extract exit codes from manpage
 read_exit_codes(){
     str="$(man swaks)"
-	b=$(man swaks | grep -b -o "EXIT CODES" |  awk 'BEGIN {FS=":"}{print $1}')
-	c=$(man swaks | grep -b -o "ABOUT THE NAME" |  awk 'BEGIN {FS=":"}{print $1}')
-	num="$(($c-$b))"
-	echo "${str:$b:$num}"
+    b=$(man swaks | grep -b -o "EXIT CODES" |  awk 'BEGIN {FS=":"}{print $1}')
+    c=$(man swaks | grep -b -o "ABOUT THE NAME" |  awk 'BEGIN {FS=":"}{print $1}')
+    num="$(($c-$b))"
+    echo "${str:$b:$num}"
 }
 
 
 # Check the filesystem Size - by executing "df -h" be aware that this could
 # be a different size to the original filesystem size!
 checkFileSystemSize(){
-
+   readConfiguration
    str=""
-   for word in $DRIVES  
+
+   for word in $DRIVES
    do
-      # Find the Disk in the output of df 
+      # Find the Disk in the output of df
       remaining=$(df -h | grep $word )
       stringarray=($remaining)
       remain=${stringarray[4]}
-      remain=${remain::-1}
-	  
-     if [ "$remain" -gt "$ERROR_WHEN" ]; then
-	     line="$(date) The disk ${word} does not have enough space! Remove files to keep this machine running! Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]} "
-		 temp="${str}\n${line}"
-	     str=$(echo -e "${temp}")
-     fi
-     echo "$(date) Checked filesystem space of disk: $word Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]}"
+
+      if [[ $remain != "" ]];then
+         remain=${remain::-1}
+         if [ "$remain" -gt "$ERROR_WHEN" ]; then
+             line="$(date) The disk ${word} does not have enough space! Remove files to keep this machine running! Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]} "
+             temp="${str}\n${line}"
+             str=$(echo -e "${temp}")
+         fi
+         echo "$(date) Checked filesystem space of disk: $word Remaining space: ${stringarray[3]} used: ${stringarray[2]}  ${remain}% size: ${stringarray[1]}"
+      else
+         echo "Error: Harddisk not found! $word"
+      fi
    done
-   
-   # Create the Message - if the message is empty close this script  
+   # Create the Message - if the message is empty close this script
    str=$(echo -e "$str")
-   data=$(cat $MESSAGE)
-   if [ $? -gt 0 ];then
-      echo " -ERROR: Could not find message file"
-	  exit 1
-   elif [ $(cat $MESSAGE | wc -c ) -eq "0" ];then
-      echo " -ERROR: No default message found!"
-      exit 1	  
+
+   if [[ $str == "" ]];then
+      exit 0
    fi
-   
+
+   if [[ $MESSAGE == "" ]];then
+      echo " -ERROR: Message file not found or empty! Closing."
+      exit 1
+   else
+      data=$(cat $MESSAGE)
+      if [ $? -gt 0 ];then
+         echo " -ERROR: Could not find message file"
+         exit 1
+      elif [ $(cat $MESSAGE | wc -c ) -eq "0" ];then
+         echo " -ERROR: No default message found!"
+      exit 1
+      fi
+   fi
+
    temp="${data}\n${str}"
    MESSAGE_BODY=$(echo -e "${temp}")
-   
-   PW=$(cat $AUTH_PASSWORD)
-   PW_LENGTH=$(cat $AUTH_PASSWORD | wc -c )
-   if [ $? -gt 0 ];then
-      echo " -ERROR: Could not find password file"
-	  exit 1
-   elif [ $PW_LENGTH -eq "0" ];then
-      echo " -ERROR: Password empty!" 
-	  exit 1
-   fi 
-   
+
+   PW=$AUTH_MAIL_PW
+   if [[ $PW == "" ]];then
+      echo " -ERROR: No password found!"
+      exit 1
+   fi
    # Send the Email with swaks - change the default vars for your needs
-   status=$(swaks --body "$MESSAGE_BODY" --header "Subject: $PROJECT_NAME $SUBJECT" --to $RECIPIENTS --from "$FROM" --server $SMTP_SERVER --auth LOGIN --auth-user "$AUTH_USER" --auth-password "$PW" -tls)
+   status=$(eval "swaks --body \"$MESSAGE_BODY\" --header \"Subject: $PROJECT_NAME $SUBJECT\" --to $RECIPIENTS --from \"$FROM\" --server $SMTP_SERVER --auth LOGIN --auth-user \"$AUTH_USER\" -tls --auth-password $PW")
    exit_code=$?
-   
+
    # Find some detailed information in the manpage if an error occurs
    print_error $exit_code
 }
 
-# The Logfile where logs will be stored 
+# The Logfile where logs will be stored
 LOG_FILE="/var/log/disk_space_monitor.log"
 
 full_path(){
    LOCATION=`pwd`
    SCRIPT_NAME=$0
 
-   if [[ ${SCRIPT_NAME:0:1} == '.' ]];then 
+   if [[ ${SCRIPT_NAME:0:1} == '.' ]];then
       SCRIPT_NAME=`echo $SCRIPT_NAME | sed 's/\.//'`
       SCRIPT_NAME=$(echo "$LOCATION$SCRIPT_NAME")
       echo $SCRIPT_NAME
-   else 
+   else
       echo $0
    fi
 }
 
 #############################################################
 #  Create dependencys of this script
-#  
-#  Also this will create a cronjob at 4 AM 
+#
+#  Also this will create a cronjob at 4 AM
 #  Should be started as root
 #############################################################
 install(){
    SCRIPT_NAME=$(full_path)
    echo " - SCRIPT: $SCRIPT_NAME"
    echo " - This Installscript will create a cronjob"
-   echo " - also a logrotate config will be generated" 
+   echo " - also a logrotate config will be generated"
    echo " - You have to change the default parameters in this script"
-   echo " - that the connection to your smtp relay can be established" 
-   
-   # Create the Message file 
+   echo " - that the connection to your smtp relay can be established"
+
+   # Create the Message file
    touch $MESSAGE
+   echo "INSTALL: Message file created. $MESSAGE  - Insert some Text here which any User will receive."
    chmod 640 $MESSAGE
-   
-   # Create the PW File 
-   touch $AUTH_PASSWORD
-   chmod 600 $AUTH_PASSWORD 
-   
-   
+   # Create Logfile
    touch $LOG_FILE
    chmod 640 $LOG_FILE
-   echo " - Logfile $LOG_FILE created."
+   echo "INSTALL: Logfile $LOG_FILE created."
+
+   # Install cronjob
    install_cron $SCRIPT_NAME
    configure_logrotate
+   echo "INSTALL: Configure script."
+
+   configure
+   echo "ATTENTION: Dont forget to write a message to the 'message.txt'"
 }
 
 #############################################################
@@ -170,16 +272,17 @@ install(){
 #############################################################
 deinstall(){
    echo " - Removing all parts of this script"
-   echo " - Also this will remove the Message and the PW File" 
-   echo " - Backup your configuration if its necessary" 
+   echo " - Also this will remove the Message and the PW File"
+   echo " - Backup your configuration if its necessary"
    SCRIPT_NAME=$(full_path)
    echo " - SCRIPT: $SCRIPT_NAME"
    rm $LOGROTATE_FILE
    rm $LOG_FILE
    rm $MESSAGE
-   rm $AUTH_PASSWORD
+   rm $CONFIGURATION_FILE
+
    deinstall_cron $SCRIPT_NAME
-   echo " Remove the Script by - rm $SCRIPT_NAME" 
+   echo " Remove the Script by - rm $SCRIPT_NAME"
 }
 
 #############################################################
@@ -189,41 +292,41 @@ deinstall(){
 #############################################################
 install_cron(){
    CRON_JOB=$(echo "0 4 * * * $1 >> $LOG_FILE" )
-   
+
    ALREADY_EXISTS=$( crontab -l | grep "$1" --color=always )
    COUNT=$(echo $ALREADY_EXISTS | wc -c )
 
-   if [ $COUNT -gt 1 ];then 
-      echo -e "$ALREADY_EXISTS" 
-	  echo " -INFO: Cronjob already inserted - cron will not be updated!" 
-   else    
-	  ( crontab -l ; echo "$CRON_JOB" ) | crontab -
-	  if [ $? -gt 0 ];then 
-	     echo " -ERROR: Cronjob could not be inserted! Programm exit." 
-		 exit
-	  fi
-	  echo " - CronJob successfully inserted." 
+   if [ $COUNT -gt 1 ];then
+      echo -e "$ALREADY_EXISTS"
+          echo "INSTALL: -INFO: Cronjob already inserted - cron will not be updated!"
+   else
+          ( crontab -l ; echo "$CRON_JOB" ) | crontab -
+          if [ $? -gt 0 ];then
+             echo " -ERROR: Cronjob could not be inserted! Programm exit."
+                 exit
+          fi
+          echo "INSTALL: CronJob successfully inserted."
    fi
 }
-# Remove the cronjob 
+# Remove the cronjob
 deinstall_cron(){
    REGEX=$1
-   TEMP_IFS=$(echo $IFS) 
+   TEMP_IFS=$(echo $IFS)
    IFS=$'\n'
    LINES=$( crontab -l | grep "$1" -n )
    REMOVE_LINES=""
-   for i in $LINES;do 
+   for i in $LINES;do
       REMOVE_LINES=`echo $REMOVE_LINES$(echo $( echo $i | sed 's/:.*//' )"d;")`
    done
    REMOVE_LINES=$( echo "crontab -l | sed -e '$REMOVE_LINES'")
-   CRON=$(eval $REMOVE_LINES) 
-   STATUS=$(echo $CRON | crontab) 
+   CRON=$(eval $REMOVE_LINES)
+   STATUS=$(echo "$CRON" | crontab)
    if [ $? -gt 0 ];then
       echo "$STATUS - Cronjob could not be removed check cronjobs by yourself! [ crontab -l]"
-   else 
+   else
       echo "$STATUS - Cronjob successfully removed"
    fi
-   IFS=$(echo $TEMP_IFS)   
+   IFS=$(echo $TEMP_IFS)
 }
 
 #############################################################
@@ -238,17 +341,18 @@ LOGROTATE_CONFIG=" {
     create 640 root root
 }"
 
-LOGROTATE_FILE="/etc/logrotate.d/disk_space_monitor"
+LOGROTATE_FILE="/etc/logrotate.d/$0"
 
 configure_logrotate(){
     echo -e "$LOG_FILE$LOGROTATE_CONFIG" > $LOGROTATE_FILE
-	echo "Logrotate configuration written to $LOGROTATE_FILE"
+    echo "Logrotate configuration written to $LOGROTATE_FILE"
 }
 
 
 case "$1" in
+
+  -c|--configure)  configure;;
   -r|--deinstall)  deinstall;;
   -i|--install)    install;;
   *)  checkFileSystemSize $1   ;;
 esac
-
